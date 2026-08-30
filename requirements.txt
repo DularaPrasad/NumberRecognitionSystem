@@ -1,0 +1,24 @@
+# HNRS project environment - Python 3.12 (venv)
+# Rationale: as of Aug 2026, TensorFlow does not yet ship official Python 3.14 wheels,
+# while PyTorch only gained 3.14 support in its 2.10 release (Jan 2026). Since Task 3
+# requires comparing multiple ML techniques, Python 3.12 is the safest common ground -
+# it has full, stable support across PyTorch, TensorFlow, OpenCV and scikit-learn.
+
+numpy>=1.26
+pandas>=2.2
+matplotlib>=3.8
+
+# Image handling / preprocessing (Task 1) and segmentation (Task 2)
+opencv-python>=4.9
+Pillow>=10.2
+
+# ML models (Task 3) - traditional ML baseline + deep learning
+scikit-learn>=1.4
+torch>=2.10
+torchvision>=0.21
+
+# Optional- 
+# tensorflow>=2.21
+
+# Useful for exploration/dataset inspection
+jupyter>=1.0
