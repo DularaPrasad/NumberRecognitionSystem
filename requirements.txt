@@ -18,7 +18,7 @@ torch>=2.10
 torchvision>=0.21
 
 # Optional- 
-# tensorflow>=2.21
+tensorflow>=2.21
 
 # Useful for exploration/dataset inspection
 jupyter>=1.0
