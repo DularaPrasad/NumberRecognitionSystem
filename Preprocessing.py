@@ -33,13 +33,11 @@ def deskew(binary: np.ndarray) -> np.ndarray: #straightens images that are rotat
                            flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR)
 
 
-def resize(image: np.ndarray, size: tuple = (28, 28)) -> np.ndarray:
-    """Resize to the model's expected input size (28x28 for a typical MNIST-based CNN)."""
+def resize(image: np.ndarray, size: tuple = (28, 28)) -> np.ndarray: #resizes image to 28x28
     return cv2.resize(image, size, interpolation=cv2.INTER_AREA)
 
 
-def normalize(image: np.ndarray) -> np.ndarray:
-    """Scale pixel values from [0, 255] to [0.0, 1.0] as float32 for the ML model."""
+def normalize(image: np.ndarray) -> np.ndarray: #changes float values from 0-255 to 0.0 - 1.0
     return image.astype(np.float32) / 255.0
 
 
@@ -48,26 +46,15 @@ def normalize(image: np.ndarray) -> np.ndarray:
 
 
 def preprocess_clean(image: np.ndarray, size: tuple = (28, 28)) -> np.ndarray:
-    """
-    Pipeline for already-clean, centered digit images (e.g. MNIST samples,
-    or digits already segmented in Task 2).
-    Skips binarization/noise-removal since the source is already clean -
-    keeping raw grayscale intensity often gives the model more information
-    than a hard black/white cut.
-    """
+
     gray = to_grayscale(image)
     resized = resize(gray, size)
     return normalize(resized) # This is a 28x28 float32 array, values are scaled to 0.0 - 1.0 which can then be added put into the model
 
 
 def preprocess_photo(image: np.ndarray, size: tuple = (28, 28),
-                      apply_deskew: bool = False):
-    """
-    Pipeline for messier real-world input: a photo or scan of handwriting,
-    e.g. what a user uploads through the GUI.
-    Returns (normalized_array, binary_image) - the binary image is what
-    you'd feed into Task 2's segmentation step to find individual digits.
-    """
+    apply_deskew: bool = False):
+
     gray = to_grayscale(image)
     denoised = remove_noise(gray)
     binary = binarize(denoised)
