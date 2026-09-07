@@ -3,13 +3,12 @@ baseline_knn.py
 
 Task 3, first approach: a K-Nearest Neighbours (KNN) baseline on MNIST.
 
-Why start here instead of a CNN: KNN is one of the simplest ML methods -
+instead of a CNN: KNN is one of the simplest ML methods -
 for each test image, it finds the K most visually similar training images
 (by raw pixel distance) and takes a majority vote of their labels. No
 training/learning happens in the usual sense - it just memorises the data.
 
-Goal: get ANY real accuracy number, so next week's CNN has something
-concrete to compare against and beat.
+Goal: get ANY real accuracy number, as a baseline.
 """
 
 import time
@@ -22,9 +21,8 @@ transform = transforms.ToTensor()
 train_data = datasets.MNIST(root="data", train=True, download=True, transform=transform)
 test_data = datasets.MNIST(root="data", train=False, download=True, transform=transform)
 
-# Using a subset for speed on this first pass - KNN compares every test image
-# against every training image, so it gets slow with the full 60,000. We can
-# scale this up later once the basic pipeline is proven to work.
+# Using a subset for speed up - KNN compares every test image against every training image, so it gets slow with the full 60,000. We can
+# scale this up later.
 N_TRAIN = 5000
 N_TEST = 1000
 
