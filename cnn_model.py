@@ -2,7 +2,7 @@
 cnn_model.py
 
 Task 3, next step: a Convolutional Neural Network (CNN) for MNIST.
-Goal: first time working CNN, trained on the full training set,
+Goal: a first genuinely working CNN, trained on the full training set,
 with a real accuracy number to compare against last week's KNN baseline.
 """
 
@@ -14,11 +14,11 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 
-
+# Use the GPU if it's available 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# Same dataset loading as in KNN model script.
+# Same dataset loading as before in KNN model.
 transform = transforms.ToTensor()
 train_data = datasets.MNIST(root="data", train=True, download=True, transform=transform)
 test_data = datasets.MNIST(root="data", train=False, download=True, transform=transform)
@@ -88,9 +88,13 @@ elapsed = time.time() - start
 print(f"Training took {elapsed:.1f} seconds")
 
 # Evaluation: no learning happens here, just checking performance.
+# This time we also keep every individual prediction and true label, so we
+# can break accuracy down by digit afterwards, not just one overall number.
 model.eval()
 correct = 0
 total = 0
+all_preds = []
+all_labels = []
 with torch.no_grad():
     for images, labels in test_loader:
         images, labels = images.to(device), labels.to(device)
@@ -99,10 +103,55 @@ with torch.no_grad():
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
+        # .cpu() moves the values off the GPU (numpy can't read GPU memory),
+        # .numpy() converts to a plain numpy array, .extend() adds each
+        # individual value from this batch onto the running list.
+        all_preds.extend(predicted.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
 accuracy = 100 * correct / total
 print(f"CNN test accuracy: {accuracy:.2f}%")
 
+# Confusion matrix: a 10x10 table where row = the true digit, column = what
+# the model guessed. The diagonal is correct guesses; everything off the
+# diagonal is a specific kind of mistake (e.g. how many real 4s got called 9).
+from sklearn.metrics import confusion_matrix
+
+cm = confusion_matrix(all_labels, all_preds)
+
+print("\nPer-digit accuracy:")
+for digit in range(10):
+    digit_total = cm[digit].sum()      # every test image that was actually this digit
+    digit_correct = cm[digit][digit]   # how many of those were guessed correctly
+    digit_acc = 100 * digit_correct / digit_total
+    print(f"  Digit {digit}: {digit_acc:.2f}% ({digit_correct}/{digit_total})")
+
+# Plot the confusion matrix as a heatmap, with the actual counts written on
+# each cell so it's readable as a standalone image .
+plt.figure(figsize=(7, 6))
+plt.imshow(cm, cmap="Blues")
+plt.colorbar()
+plt.xlabel("Predicted digit")
+plt.ylabel("Actual digit")
+plt.title("CNN confusion matrix")
+plt.xticks(range(10))
+plt.yticks(range(10))
+for i in range(10):
+    for j in range(10):
+        # White text on dark cells, black text on light cells, so the
+        # number stays readable regardless of the cell's shade.
+        text_color = "white" if cm[i, j] > cm.max() / 2 else "black"
+        plt.text(j, i, str(cm[i, j]), ha="center", va="center",
+                  color=text_color, fontsize=8)
+plt.tight_layout()
+plt.savefig("cnn_confusion_matrix.png")
+print("Saved confusion matrix to cnn_confusion_matrix.png")
+plt.show()
+
 # Save a plot showing loss going down over training - visual evidence of learning.
+# plt.figure() here starts a brand new, blank figure, so this plot doesn't
+# get drawn on top of the confusion matrix figure above.
+plt.figure()
 plt.plot(range(1, EPOCHS + 1), train_losses, marker="o")
 plt.xlabel("Epoch")
 plt.ylabel("Training loss")
@@ -110,3 +159,11 @@ plt.title("CNN training loss over epochs")
 plt.savefig("cnn_training_curve.png")
 print("Saved training curve to cnn_training_curve.png")
 plt.show()
+
+# Save the trained model so we don't have to retrain it from scratch every
+# time we want to use it.
+# state_dict() is a dictionary holding every one of the model's learned
+# numbers - every filter value, every weight - essentially the entire result
+# of training, packaged up.
+torch.save(model.state_dict(), "cnn_model.pth")
+print("Saved trained model to cnn_model.pth")
