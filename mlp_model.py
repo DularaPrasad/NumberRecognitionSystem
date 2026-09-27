@@ -56,7 +56,7 @@ print(f"Total trainable parameters: {total_params:,}")
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-EPOCHS = 5
+EPOCHS = 10
 train_losses = []
 
 start = time.time()

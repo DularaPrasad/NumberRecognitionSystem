@@ -35,15 +35,17 @@ class SimpleCNN(nn.Module):
     def __init__(self):
         super().__init__()
         # Conv block 1: 16 filters, each learning to detect one simple
-        # pattern (an edge, a curve). padding=1 keeps the output the same
-        # 28x28 size as the input.
+        # pattern (an edge, a curve). padding=1 keeps the output the same 28x28 size as the input.
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
+        
         # Conv block 2: 32 filters, built on top of block 1's output, so
         # they can combine simple patterns into more complex shapes.
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
+
         # Shrinks the image by half each time it's used, keeping only the
         # strongest signal in each small region.
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
         # Final decision layer: from 32*7*7 flattened features to 10 scores,
         # one per digit.
         self.fc1 = nn.Linear(32 * 7 * 7, 10)
@@ -62,7 +64,7 @@ model = SimpleCNN().to(device)
 criterion = nn.CrossEntropyLoss()                      # measures how wrong the predictions are
 optimizer = optim.Adam(model.parameters(), lr=0.001)   # adjusts the model to reduce that error
 
-EPOCHS = 5
+EPOCHS = 10
 train_losses = []
 
 start = time.time()
