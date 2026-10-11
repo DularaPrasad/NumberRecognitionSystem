@@ -1,17 +1,17 @@
 # Task 2 – Image Segmentation (HNRS, COS30018 Option B)
 
-A beginner-friendly guide to what Task 2 is, how the code works, and how to run it step by step.
+A beginner-friendly guide to what Task 2 is, how the code works, and how to run it, including **training the U-Net neural network**.
 
 ---
 
 ## Part 1 – What is Task 2? (the big picture)
 
-Our system has to read a handwritten **number** like `4071`. But the ML model from Task 3 is trained on **MNIST**, and MNIST only contains **single digits** (one digit per 28 × 28 picture). The model has never seen a picture with four digits in it.
+Our system has to read a handwritten **number** like `4071`. The Task 3 model is trained on **MNIST**, which only contains **single digits** (one digit per 28 × 28 picture). It has never seen a picture with four digits in it.
 
-So someone has to **cut the number picture into single-digit pictures** first. That cutting is called **segmentation**, and it's your job.
+So someone has to **cut the number picture into single-digit pictures** first. That is **segmentation**, and it is Task 2.
 
 ```
-  Task 1                  Task 2 (YOU)                       Task 3
+  Task 1                  Task 2                             Task 3
  ┌──────────┐   ┌──────────────────────────────┐   ┌──────────────────┐
  │ clean up │──▶│ find each digit, cut it out, │──▶│ model says which │──▶  "4071"
  │ the image│   │ put them in left-to-right    │   │ digit each       │
@@ -19,234 +19,228 @@ So someone has to **cut the number picture into single-digit pictures** first. T
                 └──────────────────────────────┘   └──────────────────┘
 ```
 
-The brief says for Task 2 (5 marks) you must:
+The brief asks Task 2 to research, compare and select a segmentation technique, then implement it. Our tutor also asked us to **train a computer vision neural network** for this step instead of relying only on rule-based methods.
 
-1. **Research and experiment** with different segmentation techniques
-2. **Compare** them
-3. **Select** the best one and **implement** it
-
-This folder does all three. It contains 4 techniques, an experiment that scores them on thousands of images, and the selected technique ready for the team to use.
+This folder therefore contains:
+- **4 rule-based techniques** (no learning). These are the baseline.
+- **A trained U-Net** neural network (the selected technique).
+- **An experiment** that scores all five on 1,500 test images.
 
 ---
 
 ## Part 2 – Key ideas in plain English
 
-**A picture is just a grid of numbers.** A grayscale image is a table where every cell (pixel) is a number from 0 (black) to 255 (white). In Python we hold it as a **NumPy array**. `image[y, x]` is the pixel in row `y`, column `x`.
+**A picture is just a grid of numbers.** A grayscale image is a table where every pixel is a number from 0 (black) to 255 (white). In Python it is a **NumPy array**.
 
-**Binary image.** We turn every pixel into either 0 or 255 (pure black or pure white). This is called **thresholding**: "if the pixel is brighter than T, make it white, otherwise black". **Otsu's method** picks T automatically by looking at the image. **Adaptive thresholding** picks a different T for each small area, which helps with photos that have shadows.
+**Binary image.** Every pixel becomes 0 or 255 (black or white). This is **thresholding**. **Otsu's method** chooses the threshold automatically. **Adaptive thresholding** uses a different threshold in each small area, which helps with shadowy photos.
 
-**Ink is white, background is black.** MNIST uses white digits on a black background. If you photograph a number written on white paper, it's the opposite, so the code flips (inverts) it automatically.
+**Ink is white, background is black**, like MNIST. Photos of dark ink on white paper are flipped automatically.
 
-**Bounding box.** The smallest rectangle around a digit, written as `(x, y, w, h)`: top-left corner, width and height.
+**Bounding box.** The smallest rectangle around a digit: `(x, y, w, h)`.
 
-**MNIST format.** For the Task 3 model to work, each digit must look like MNIST: fit inside a 20 × 20 box (keeping its shape), sit on a 28 × 28 black square, and be centred by its "centre of mass" (the average position of its ink). The function `to_mnist_format()` does this.
+**MNIST format.** Each digit handed to Task 3 must look like MNIST: thick pen line (thin lines are thickened by `normalise_stroke()`), fitted inside a 20 × 20 box, placed on a 28 × 28 black square, and centred on its centre of mass. `to_mnist_format()` does this.
+
+**Neural network, training, epoch, loss.** A neural network is a function with many adjustable numbers (parameters). **Training** shows it thousands of examples with the correct answer. After each guess, the **loss** measures how wrong it was, and the parameters are nudged to make the next guess less wrong. One full round of training is an **epoch**.
 
 ---
 
-## Part 3 – The four techniques
+## Part 3 – The five techniques
 
-### Technique A – Vertical projection profile
-Count how much ink is in every **column** of the image. Columns with zero ink are gaps between digits.
+### A – Vertical projection profile (rule-based)
+Count the ink in every **column**. Empty columns are gaps between digits.
+✅ Simple, fast, perfect when digits are well spaced. ❌ Fails when digits touch or lean over each other.
+
+### B – Connected component labelling (rule-based)
+Every group of touching ink pixels becomes one blob, and one blob is one digit.
+✅ Works when digits overlap sideways without touching. ❌ Two touching digits become one blob, and a broken digit becomes two blobs.
+
+### C – Contour detection (rule-based)
+Trace the outline of each shape with `cv2.findContours` and cut out its rectangle.
+✅ Standard OpenCV. ❌ Same problems as B, and the rectangle can include bits of the next digit.
+
+### D – Hybrid (best rule-based method)
+Connected components plus repair steps: remove dust, merge a digit drawn in two pieces, attach short detached strokes, and split blobs that are too wide using a **shortest-path cut** (dynamic programming finds the cut through the least ink).
+
+### E – U-Net neural network (trained, SELECTED ✅)
+A **U-Net** is a convolutional neural network built for segmentation (Ronneberger et al., 2015). Instead of rules written by hand, it **learns from examples** to label **every pixel** as one of:
+
+| Label | Meaning |
+|---|---|
+| 0 – background | no ink, or a speck of dust |
+| 1 – inside a digit | ink that clearly belongs to one digit |
+| 2 – border | ink where two digits touch or overlap |
+
+Each separate patch of "inside a digit" pixels then becomes one digit, and border pixels are given to the nearest digit. So touching digits are cut exactly where the network saw the contact.
 
 ```
-image:     ██  ███     █        column ink:  2 2 0 3 3 3 0 0 1
-           ██  █ █     █        gaps are the 0s → cut there
+   input image ──▶ [encoder: shrinks, learns WHAT]  ──▶ bottleneck
+                          │ skip connections (keep fine detail) │
+   3 labels per pixel ◀── [decoder: grows back, decides WHERE] ◀┘
 ```
-✅ Very simple and fast. Perfect when digits are well spaced.
-❌ Fails when digits touch, or when a slanted digit leans over its neighbour (no empty column).
 
-### Technique B – Connected component labelling
-Give every group of **touching ink pixels** its own label (like flood-filling each blob with a different colour). One blob = one digit.
-✅ Works even when digits overlap sideways (as long as they don't touch). Each crop contains only that digit's pixels.
-❌ A digit drawn in two pieces (e.g. a "5" whose top bar doesn't join) becomes two blobs. Two touching digits become one blob.
+Our U-Net is small (about 121,000 parameters, 8 → 16 → 32 → 64 channels), so it trains on a laptop CPU in about 15–20 minutes.
 
-### Technique C – Contour detection
-Trace the **outline** of each shape with `cv2.findContours`, then cut out its bounding rectangle. This is the approach used in most online tutorials.
-✅ Simple, fast, standard OpenCV.
-❌ Same problems as B. Also, the crop is a plain rectangle, so bits of a neighbouring digit can sneak in.
+**Where does the training data come from?** We don't label anything by hand. `number_builder.py` glues MNIST digits into numbers **and records which digit owns every pixel**, so `unet_data.py` can compute the correct label for every pixel automatically. A new set of examples is made for every epoch.
 
-### Technique D – Hybrid (SELECTED ✅)
-Connected components (B) plus four repair steps:
-
-| Step | What it fixes | How |
-|---|---|---|
-| 1. Remove dust | tiny specks | drop blobs with < 6 % of the biggest blob's ink |
-| 2. Merge broken pieces | a digit drawn in 2 pieces, one above the other | merge blobs in the same column that sit above/below each other |
-| 3. Attach fragments | short detached strokes (e.g. the top bar of a "5") | glue short pieces onto the nearest digit, or drop them if they're far away |
-| 4. Split touching digits | two digits joined into one blob | a blob much wider than a digit is cut using a **shortest-path cut** (see below) |
-
-**The shortest-path cut.** Imagine the blob is a field where walking through ink costs 50 points and walking through background costs 1 point. We find the cheapest way to walk from the top to the bottom (moving at most one step left or right per row). That path goes through the thinnest connection between the two digits, and it can **bend** around slanted strokes, which a straight cut can't. This is solved with **dynamic programming**, a classic algorithm idea you can mention in the report.
+**No cheating:** the U-Net is trained on numbers built from MNIST **training** digits. The experiment tests on numbers built from MNIST **test** digits, which the network has never seen.
 
 ---
 
 ## Part 4 – What's in this folder
 
 ```
-task2_segmentation/
-├── segmentation.py      ★ the main code: 4 techniques + MNIST format
-├── number_builder.py    builds number images from a folder of digit images
-├── compare_methods.py   the experiment: scores all 4 techniques
-├── demo_segment.py      try segmentation on one image and see it
+Task2_Segmentation/
+├── segmentation.py      ★ main entry point: segment_number(image, method=...) + MNIST format
+├── unet_model.py        the U-Net network (PyTorch)
+├── unet_data.py         makes training examples with per-pixel labels
+├── train_unet.py        trains the U-Net and saves models/unet_seg.pt
+├── unet_segment.py      uses the trained U-Net to split a number into digits
+├── compare_methods.py   the experiment: scores all 5 techniques
+├── demo_segment.py      try segmentation on one image and see each step
+├── number_builder.py    builds number images from single-digit images
 ├── mnist_loader.py      reads MNIST into NumPy arrays
-├── README.md            this guide
-├── data/                MNIST files (downloaded automatically)
-├── digits/              folder of single-digit images (made by number_builder)
-├── outputs/             results of demo_segment / number_builder
-└── results/             results of the experiment (CSV + charts for the report)
+├── models/unet_seg.pt   the trained network (about 0.5 MB)
+├── results/             CSV tables and figures for the report
+├── data/  digits/  outputs/   generated locally, not uploaded to GitHub
+└── README.md            this guide
 ```
 
 ---
 
 ## Part 5 – Running it, step by step
 
-### Step 1 – Put the folder in your project
-Copy the whole `task2_segmentation` folder into your project folder (the one with your `venv`), e.g.:
+### Step 1 – Open a terminal and switch the venv on
 ```
-E:\SWIN\Interligent System\Project files\Task 2\NumberRecognitionSystem-main\task2_segmentation
-```
-
-### Step 2 – Open a terminal and switch the venv on
-```
-cd "E:\SWIN\Interligent System\Project files\Task 2\NumberRecognitionSystem-main"
-venv\Scripts\activate
-cd task2_segmentation
+cd "E:\SWIN\Interligent System\Project files\NRS-github\Task2_Segmentation"
+& "E:\SWIN\Interligent System\Project files\Task 2\NumberRecognitionSystem-main\venv\Scripts\Activate.ps1"
 ```
 You must see `(venv)` at the start of the line.
 
-### Step 3 – Check MNIST loads
+### Step 2 – Check MNIST loads
 ```
 python mnist_loader.py
 ```
-Expected:
-```
-Images: (10000, 28, 28) uint8
-Labels: (10000,) first ten = [7 2 1 0 4 1 4 9 5 9]
-```
-(The first time, it downloads MNIST into `data/`, which needs internet.)
+The first time, MNIST downloads into `data/` (needs internet).
 
-### Step 4 – Make the folder of single digits
+### Step 3 – Look at the training examples
 ```
-python number_builder.py --export
+python unet_data.py
 ```
-This creates `digits/0/`, `digits/1/` … `digits/9/`, each with 20 MNIST digit images. Open the folder and have a look. This is the "folder of images of individual digits" the brief talks about.
+Open `results/unet_training_examples.png`. On the left is what the network sees, and on the right the correct answer (blue = inside a digit, orange = border).
 
-### Step 5 – Build a number image
+### Step 4 – Train the U-Net
 ```
-python number_builder.py 4071
+python train_unet.py
 ```
-Open `outputs/number_4071.png`. Try also:
+It prints one line per epoch, for example:
 ```
-python number_builder.py 4071 --gap -3       (digits touching)
-python number_builder.py 2026 --paper        (dark ink on paper, like a photo)
+epoch  1 | train loss 0.6068 | val loss 0.3215 | ink acc  91.9% | border found  82.5% | 86.8s  <- best so far, saved
+...
+epoch 12 | train loss 0.0301 | val loss 0.0272 | ink acc  96.4% | border found  93.4% | 85.8s
+```
+- **loss** going down means the network is learning.
+- **val** (validation) numbers are measured on examples the network does not train on, so they show whether it really learned or just memorised.
+- The best version is saved to `models/unet_seg.pt`.
+- The curve is saved to `results/unet_training_curve.png` (a figure for the report).
+
+A trained model is already included, so you only need to retrain if you change something. `python train_unet.py --epochs 3` is a quick test run.
+
+### Step 5 – Segment a number and see what the network did
+```
+python demo_segment.py --number 4071 --gap -3
+```
+Open `outputs/segmented_4071.png`. You will see the input, the binary image, **the U-Net's pixel labels** (blue/orange), the boxes around each digit, and each digit in 28 × 28 format. The digits are also saved in `outputs/digits_4071/` for Task 3.
+
+Other examples:
+```
+python demo_segment.py --image my_number.png                 (your own drawing)
+python demo_segment.py --number 2380 --gap -3 --all          (all 5 techniques)
+python demo_segment.py --image photo.jpg --threshold adaptive  (a phone photo)
 ```
 
-### Step 6 – Segment it and look at the result
-```
-python demo_segment.py --number 4071
-```
-Open `outputs/segmented_4071.png`. You'll see 4 rows: the input, the black-and-white version, green boxes around each digit (numbered left to right), and each digit in 28 × 28 MNIST format.
-The 28 × 28 digits are also saved as separate files in `outputs/digits_4071/`. **These are what Task 3's model will read.**
-
-Compare all four techniques on a hard (touching) example:
-```
-python demo_segment.py --number 4071 --gap -3 --all
-```
-
-Try your own handwriting: write a number on white paper, take a photo, save it as `my_number.jpg` in this folder, then:
-```
-python demo_segment.py --image my_number.jpg --threshold adaptive --show
-```
-(`--show` opens a window. Close it to finish.)
-
-### Step 7 – Run the experiment (for your report)
+### Step 6 – Run the experiment (for your report)
 ```
 python compare_methods.py
 ```
-It takes a few seconds and creates:
-- `results/segmentation_results.csv`: the table of numbers (open in Excel)
-- `results/segmentation_comparison.png`: bar chart
-- `results/segmentation_examples.png`: every technique on an example of every condition
+About a minute. It creates `results/segmentation_results.csv`, `segmentation_comparison.png` and `segmentation_examples.png`.
 
-### Step 8 – Save your work to GitHub
+### Step 7 – Save to GitHub
 ```
 cd ..
-git add task2_segmentation
-git commit -m "Task 2: segmentation techniques, comparison experiment and selected hybrid method"
-git push
+git add Task2_Segmentation
+git commit -m "Task 2: trained U-Net segmentation network and comparison"
+git push origin main
 ```
-Make sure your `.gitignore` contains `venv/`, so the big environment folder is not uploaded. It's fine to leave out `task2_segmentation/data/` too (MNIST downloads itself).
 
 ---
 
-## Part 6 – How the experiment works and what it found
+## Part 6 – The experiment and what it found
 
-**Test data.** For each of 5 conditions, 300 numbers of 2 to 6 digits are built from real MNIST test digits (1,500 images in total, about 6,000 digits). Each digit gets a random size and a small up/down shift, like real handwriting.
+**Test data.** 300 numbers of 2 to 6 digits for each of 5 conditions, built from MNIST **test** digits (1,500 images, about 6,000 digits). Seed 42, so you get the same numbers.
 
 | Condition | What it simulates |
 |---|---|
-| Well spaced | neat handwriting with clear gaps (4–10 px) |
+| Well spaced | neat handwriting, clear gaps (4–10 px) |
 | Close | small gaps (0–3 px) |
 | Touching | digits overlapping by 1–5 px |
 | Noisy | 25 random dots of dust |
 | Paper photo | dark ink on unevenly lit, grainy paper |
 
-**Scoring.** Because we built the images ourselves, we know exactly which pixel belongs to which digit. A digit counts as correctly segmented when one segment contains **at least 85 % of the digit's ink** and is **at least 90 % made of that digit** (no big bits of a neighbour). A whole number is correct only when the count is right, every digit is right, and they're in the right order.
+**Scoring.** A digit is correct when one segment holds at least 85 % of its ink and is at least 90 % made of that digit. A number is correct only when the count, every digit and the order are right.
 
-**Results: % of numbers segmented perfectly** (run with seed 42, so you'll get the same numbers):
+**Results: % of numbers segmented perfectly**
 
-| Condition | Projection | Conn. components | Contours | **Hybrid** |
-|---|---|---|---|---|
-| Well spaced | **100.0** | 97.0 | 97.0 | 97.3 |
-| Close | 77.0 | 82.7 | 82.7 | **93.0** |
-| Touching | 0.7 | 5.3 | 3.7 | **15.3** |
-| Noisy | 81.7 | 90.3 | 90.3 | **95.7** |
-| Paper photo | **99.3** | 97.7 | 97.7 | 96.7 |
-| **Average** | 71.7 | 74.6 | 74.3 | **79.6** |
+| Condition | Projection | Conn. comp. | Contours | Hybrid | **U-Net** |
+|---|---|---|---|---|---|
+| Well spaced | **100.0** | 97.0 | 97.0 | 97.3 | 99.3 |
+| Close | 77.0 | 82.7 | 82.7 | 93.0 | **94.7** |
+| Touching | 0.7 | 5.3 | 3.7 | 15.3 | **41.0** |
+| Noisy | 81.7 | 90.3 | 90.3 | 95.7 | **96.0** |
+| Paper photo | **99.3** | 97.7 | 97.7 | 96.7 | 97.0 |
+| **Average** | 71.7 | 74.6 | 74.3 | 79.6 | **85.6** |
+| Digits correct (average) | 76.5 | 80.5 | 80.1 | 85.6 | **93.1** |
 
-Speed: every method takes about 0.1–1 ms per image, so speed isn't a deciding factor.
+Speed on a laptop CPU: rule-based about 0.5–1 ms per image, U-Net about 10–20 ms per image. Both are fast enough for the GUI.
 
-**What this tells us (use this in your report):**
-1. **Projection** is the best when digits are clearly apart, but it collapses as soon as they get close or touch.
-2. **Connected components** and **contours** give almost the same results, because both look for separate blobs. Contours' rectangular crops can include parts of neighbours.
-3. **Hybrid** is the best overall and the most reliable. Its repair steps give the biggest gains on close (+10 points) and noisy (+5 points) numbers, and it's the only method that handles touching digits at all (3× better). On clean images it gives up about 2–3 points to projection, a small price.
-4. **Touching digits remain the hardest problem.** Hybrid correctly separates about a third of the digits there, but only 15 % of whole numbers. When strokes really overlap, no cut can separate them cleanly without knowing what the digits are.
+**What this tells us:**
+1. **The U-Net has the best average** (85.6 % against 79.6 % for the best rule-based method) and the best digit accuracy (93.1 % against 85.6 %).
+2. **The biggest gain is on touching digits**: 41.0 % of numbers against 15.3 %, and 69.3 % of digits against 34.0 %. The rule-based methods can only cut where the ink is thin. The network has learned what digit strokes look like, so it can tell where one digit ends and the next begins.
+3. On easy images all methods score 97–100 %. Projection is still slightly better on well spaced and paper-photo numbers, because when there is a clean gap a simple rule is perfect.
+4. **Touching digits are still the hardest case.** 59 % of touching numbers are still not perfect. Most failures have the right digit count, but where two strokes really cross, some crossing pixels go to the wrong digit, and the strict 90 % purity rule then fails the digit.
 
-**Selected technique: Hybrid**, because it has the highest average accuracy and no condition where it fails badly (except touching, where all methods struggle).
-
----
-
-## Part 7 – Limitations and ideas for the future (good for "critical analysis")
-
-- **Touching digits.** A known better approach is **recognition-based segmentation**: try several possible cuts, ask the Task 3 model how confident it is about each piece, and keep the cut with the highest confidence. This needs the trained Task 3 model, so it's a good joint idea for later sprints or the research component.
-- **Synthetic test data.** The tests use MNIST digits glued together, not real photos of written numbers. Collecting 30–50 real photos from the team and testing on them would make the evaluation stronger.
-- **Fixed thresholds.** Settings such as `SPLIT_RATIO = 1.2` were tuned on the synthetic data. Very wide single digits (a wide "0") can occasionally be split wrongly. These settings are at the top of `segmentation.py`, so the GUI could let the user change them, which the brief says a good project does.
-- **One line only.** The code assumes the number is written on one horizontal line. A slanted line or multiple lines would need extra steps (deskewing, line detection).
-- **Shared preprocessing.** `prepare_binary()` does the minimum preprocessing segmentation needs. Agree with your Task 1 teammate whether to use their function instead, so the team doesn't have two versions.
+**Selected technique: U-Net**, because it has the highest average accuracy and is the only method that handles touching digits reasonably. The rule-based hybrid remains available as a fast fallback.
 
 ---
 
-## Part 8 – How your teammates use your code
+## Part 7 – Limitations and ideas for the future
 
-For **Task 3** (the model) and **Task 4 / GUI** (integration), they only need one function:
+- **Synthetic data.** Training and testing use MNIST digits glued together. Real photos of handwritten numbers may look different (paper texture, pen types, slant). Testing on 30–50 real photos from the team, and adding some to training, would make the results stronger.
+- **Overlapping strokes.** Where strokes truly cross, pixels can only belong to one digit in our labels, so some ink is always lost. A next step is to predict a separate mask per digit (instance segmentation, e.g. Mask R-CNN) or to use the Task 3 model's confidence to choose between cuts.
+- **Scale.** The network was trained on digits about 21 pixels tall. Larger images are resized automatically, but very small or very large writing may still cause errors.
+- **One line only.** The code assumes one horizontal line of digits.
+- **Shared preprocessing.** `prepare_binary()` does the minimum preprocessing. Agree with the Task 1 teammate whether to use their function instead.
+
+---
+
+## Part 8 – How your teammates use the code
 
 ```python
 import cv2
 from segmentation import segment_number
 
 image = cv2.imread("some_number.png")
-digits = segment_number(image, method="hybrid")   # list, left to right
+digits = segment_number(image, method="unet")   # list, left to right
 
 for d in digits:
-    print(d.box)        # (x, y, w, h) – where it is in the image
-    pic = d.digit28     # 28x28 uint8 NumPy array, white digit on black
-    # prediction = model.predict(pic / 255.0 ...)   <- Task 3's part
+    print(d.box)        # (x, y, w, h) in the image
+    pic = d.digit28     # 28x28 uint8 array, white digit on black, ready for Task 3
 ```
 
-Options they can pass (useful for the GUI):
-- `method="projection" | "connected_components" | "contours" | "hybrid"`
-- `threshold="otsu" | "adaptive"` (use adaptive for phone photos)
+Options (useful for the GUI):
+- `method="unet"` (trained network) or `"hybrid"`, `"projection"`, `"connected_components"`, `"contours"`
+- `threshold="otsu" | "adaptive"` (adaptive for phone photos)
 
-For the GUI's image acquisition, `number_builder.build_number_from_folder("4071")` creates a number image from the digit folder, which covers the brief's "automatic creation of the image of a number from a folder of images" option.
+`number_builder.build_number_from_folder("4071")` creates a number image from the digit folder, which covers the brief's image-acquisition option.
 
 ---
 
@@ -254,9 +248,10 @@ For the GUI's image acquisition, `number_builder.build_number_from_folder("4071"
 
 | Problem | Fix |
 |---|---|
-| `ModuleNotFoundError: No module named 'cv2'` (or numpy, etc.) | The venv isn't on. Run `venv\Scripts\activate` and check for `(venv)`. |
-| `ModuleNotFoundError: No module named 'segmentation'` | You're in the wrong folder. `cd` into `task2_segmentation` first. |
-| `No digit images in 'digits'` | Run `python number_builder.py --export`. |
-| MNIST download fails | Check your internet, then run `python mnist_loader.py` again. |
-| Your own photo finds too many/too few digits | Try `--threshold adaptive`, crop the photo closer to the number, write with a darker pen, and leave small gaps between digits. |
-| `--show` window doesn't appear | Leave out `--show` and open the PNG in `outputs/` instead. |
+| `ModuleNotFoundError: No module named 'cv2'` / `torch` | The venv isn't on. Activate it and check for `(venv)`. |
+| `ModuleNotFoundError: No module named 'segmentation'` | You're in the wrong folder. `cd` into `Task2_Segmentation` first. |
+| `Trained model not found ... models/unet_seg.pt` | Run `python train_unet.py`. |
+| `No module named 'scipy'` | `pip install scipy` (normally installed with scikit-learn). |
+| Training is very slow | Use fewer batches: `python train_unet.py --steps 80`. |
+| Your own photo finds too many/too few digits | Try `--threshold adaptive`, crop closer to the number, use a darker pen. |
+| `--show` window doesn't appear | Leave out `--show` and open the PNG in `outputs/`. |

@@ -12,7 +12,7 @@ EXAMPLES (run inside the project folder with the venv switched on)
   Use your OWN image (e.g. a photo of a number you wrote on paper):
       python demo_segment.py --image my_number.jpg --threshold adaptive
 
-  Compare all four techniques on the same image:
+  Compare all five techniques on the same image:
       python demo_segment.py --number 4071 --all
 
   Also open the picture in a window:
@@ -40,15 +40,22 @@ def show_result(image, method, threshold, title):
 
     segments, binary = segment_number(image, method=method, threshold=threshold, return_binary=True)
     n = max(1, len(segments))
-    fig = plt.figure(figsize=(max(8, 1.3 * n), 7))
-    grid = fig.add_gridspec(4, n)
-
     panels = [
         ("1. Input image", image),
         ("2. Black & white (binary) - ink is white", binary),
-        (f"3. Found {len(segments)} digit(s) with '{method}' (numbered left to right)",
-         draw_boxes(image, segments)),
     ]
+    if method == "unet":
+        # show what the network decided for every pixel
+        from unet_segment import pixel_labels
+        colours = np.array([[0, 0, 0], [214, 120, 42], [52, 104, 235]], np.uint8)  # BGR: black, blue, orange
+        panels.append(("U-Net pixel labels: blue = inside a digit, orange = border between digits",
+                       colours[pixel_labels(binary)]))
+    panels.append((f"{len(panels) + 1}. Found {len(segments)} digit(s) with '{method}' (numbered left to right)",
+                   draw_boxes(image, segments)))
+    rows = len(panels) + 1
+    fig = plt.figure(figsize=(max(8, 1.3 * n), 1.9 * rows))
+    grid = fig.add_gridspec(rows, n)
+
     for row, (label, pic) in enumerate(panels):
         ax = fig.add_subplot(grid[row, :])
         if pic.ndim == 3:
@@ -59,7 +66,7 @@ def show_result(image, method, threshold, title):
         ax.axis("off")
 
     for i, seg in enumerate(segments):
-        ax = fig.add_subplot(grid[3, i])
+        ax = fig.add_subplot(grid[rows - 1, i])
         ax.imshow(seg.digit28, cmap="gray")
         ax.set_title(f"#{i + 1}  (28x28)", fontsize=8)
         ax.axis("off")
@@ -73,8 +80,9 @@ def main():
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--image", help="path to an image file")
     src.add_argument("--number", help="build this number from the digit folder, e.g. 4071")
-    ap.add_argument("--method", default="hybrid", choices=list(METHODS))
-    ap.add_argument("--all", action="store_true", help="run all four methods")
+    ap.add_argument("--method", default="unet", choices=list(METHODS),
+                    help="unet (trained network, default) or one of the rule-based methods")
+    ap.add_argument("--all", action="store_true", help="run all five methods")
     ap.add_argument("--threshold", default="otsu", choices=["otsu", "adaptive"])
     ap.add_argument("--gap", type=int, default=None, help="with --number: gap in px (negative = touching)")
     ap.add_argument("--paper", action="store_true", help="with --number: paper/photo look")

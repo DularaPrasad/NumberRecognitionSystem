@@ -14,7 +14,9 @@ HOW IT WORKS
         - Noisy         : random dots of "dust" added
         - Paper photo   : dark ink on unevenly lit paper with grain
   2. Because WE built the images, we know where every digit really is.
-  3. Run all 4 techniques on every image and score them.
+  3. Run all 5 techniques (4 rule-based + the trained U-Net) on every
+     image and score them. The test numbers are built from MNIST TEST
+     digits, which the U-Net never saw during training.
 
 HOW A RESULT IS SCORED
   A digit counts as correctly segmented when one segment contains
@@ -62,9 +64,10 @@ METHOD_NAMES = {
     "projection": "Projection profile",
     "connected_components": "Connected components",
     "contours": "Contours",
-    "hybrid": "Hybrid (selected)",
+    "hybrid": "Hybrid (rule-based)",
+    "unet": "U-Net (trained)",
 }
-COLOURS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]  # one colour per method
+COLOURS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]  # one colour per method
 
 
 def score(segments, binary, owner, n_digits, min_cov=0.85, min_pur=0.90):
@@ -152,12 +155,12 @@ def save_chart(rows):
     """Grouped bar chart: number accuracy for each condition and method."""
     conds = list(CONDITIONS)
     methods = list(METHOD_NAMES.values())
-    width = 0.2
-    fig, ax = plt.subplots(figsize=(10, 4.8))
+    width = 0.8 / len(methods)
+    fig, ax = plt.subplots(figsize=(11, 4.8))
     for m, (name, colour) in enumerate(zip(methods, COLOURS)):
         vals = [next(r["number_accuracy_%"] for r in rows
                      if r["condition"] == c and r["method"] == name) for c in conds]
-        xs = np.arange(len(conds)) + (m - 1.5) * width
+        xs = np.arange(len(conds)) + (m - (len(methods) - 1) / 2) * width
         ax.bar(xs, vals, width * 0.92, color=colour, label=name)
     ax.set_xticks(np.arange(len(conds)), conds)
     ax.set_ylabel("Numbers segmented perfectly (%)")
@@ -167,7 +170,7 @@ def save_chart(rows):
     ax.set_axisbelow(True)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
-    ax.legend(frameon=False, ncol=4, loc="upper center", bbox_to_anchor=(0.5, -0.1))
+    ax.legend(frameon=False, ncol=len(methods), loc="upper center", bbox_to_anchor=(0.5, -0.1))
     fig.tight_layout()
     path = os.path.join(RESULTS, "segmentation_comparison.png")
     fig.savefig(path, dpi=150)
@@ -177,7 +180,7 @@ def save_chart(rows):
 
 def save_examples(examples):
     """Grid of pictures: one row per condition, one column per method."""
-    fig, axes = plt.subplots(len(examples), len(METHODS), figsize=(14, 2.0 * len(examples)))
+    fig, axes = plt.subplots(len(examples), len(METHODS), figsize=(3.5 * len(METHODS), 2.0 * len(examples)))
     for r, (cond, (img, owner, n, text)) in enumerate(examples.items()):
         for c, method in enumerate(METHODS):
             segs = segment_number(img, method=method)

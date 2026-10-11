@@ -53,6 +53,8 @@ SPLIT_RATIO = 1.20     # a blob wider than 1.2 x its height is probably 2+ digit
 DIGIT_ASPECT = 0.70    # a typical digit is about 0.7 x as wide as it is tall
 FRAGMENT_HEIGHT = 0.45 # a piece shorter than 45% of a digit's height is a fragment
 FRAGMENT_REACH = 0.35  # glue a fragment on if it is this close (x digit height)
+STROKE_TARGET = 0.20   # MNIST pen thickness (line width / digit size measure)
+STROKE_MIN = 0.14      # lines thinner than this are thickened to the target
 FRAGMENT_MIN_INK = 0.12 # ... and has at least 12% of a normal digit's ink
 
 
@@ -400,10 +402,48 @@ def segment_hybrid(binary):
 # ==========================================================================
 # 6. CONVERT ONE DIGIT TO MNIST FORMAT (the hand-off to Task 3)
 # ==========================================================================
+def stroke_ratio(mask):
+    """How thick the pen line is, compared with the size of the digit.
+
+    The "distance transform" gives, for every ink pixel, its distance to the
+    nearest background pixel. In the middle of a thick line that distance is
+    large, in a thin line it is small - so the average tells us the thickness.
+    MNIST digits measure about 0.20 with this formula.
+    """
+    ink = np.pad((mask > 127).astype(np.uint8), 1)
+    dist = cv2.distanceTransform(ink, cv2.DIST_L2, 3)
+    if not dist.any():
+        return 0.0
+    return 4.0 * float(dist[dist > 0].mean()) / max(mask.shape)
+
+
+def normalise_stroke(mask, target=STROKE_TARGET, minimum=STROKE_MIN):
+    """Thicken a digit written with a THIN line so it looks like MNIST.
+
+    MNIST digits were written with a thick pen. A digit drawn with a thin line
+    (a fine pen, or a thin brush in Paint) almost disappears when it is shrunk
+    to 28 x 28, and the Task 3 model will not recognise it. If the line is
+    thinner than `minimum`, we "dilate" it (grow the ink outwards) until it is
+    about as thick as an MNIST digit. Digits that are already thick enough are
+    returned unchanged.
+    """
+    ratio = stroke_ratio(mask)
+    if ratio == 0 or ratio >= minimum:
+        return mask
+    grow = int(round((target - ratio) * max(mask.shape)))  # pixels to add
+    if grow < 1:
+        return mask
+    pad = grow  # room for the ink to grow into
+    padded = np.pad(mask, pad)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (grow + 1, grow + 1))
+    return cv2.dilate(padded, kernel)
+
+
 def to_mnist_format(mask):
     """Make a cropped digit look exactly like an MNIST image.
 
     MNIST rules (from the original dataset description):
+      * the pen line is thick (thin lines are thickened first),
       * the digit is resized to fit in a 20 x 20 box, KEEPING its shape
         (a tall "1" stays thin - we do not stretch it),
       * it is placed on a 28 x 28 black canvas,
@@ -414,6 +454,7 @@ def to_mnist_format(mask):
     if len(xs) == 0:
         return np.zeros((28, 28), np.uint8)
     crop = mask[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    crop = normalise_stroke(crop)  # thin pen lines are thickened to MNIST style
 
     # Resize so the LONGER side becomes 20 pixels.
     h, w = crop.shape
@@ -438,11 +479,19 @@ def to_mnist_format(mask):
 # ==========================================================================
 # 7. MAIN ENTRY POINT - this is what other team members call
 # ==========================================================================
+def segment_unet(binary):
+    """Technique E: the TRAINED U-Net neural network (see unet_segment.py).
+    Imported only when used, so the other methods work without PyTorch."""
+    from unet_segment import segment_unet as run_unet
+    return run_unet(binary)
+
+
 METHODS = {
     "projection": segment_projection,
     "connected_components": segment_connected_components,
     "contours": segment_contours,
     "hybrid": segment_hybrid,
+    "unet": segment_unet,
 }
 
 
@@ -452,7 +501,8 @@ def segment_number(image, method="hybrid", threshold="otsu", return_binary=False
     Args:
         image:   the number image (grayscale or colour, any size).
         method:  one of "projection", "connected_components", "contours",
-                 "hybrid" (default, recommended).
+                 "hybrid" (best rule-based) or "unet" (trained neural network;
+                 needs models/unet_seg.pt from train_unet.py).
         threshold: "otsu" or "adaptive" (see prepare_binary).
         return_binary: also return the black/white image (for display).
 
@@ -464,7 +514,7 @@ def segment_number(image, method="hybrid", threshold="otsu", return_binary=False
         raise ValueError(f"Unknown method '{method}'. Choose from {list(METHODS)}")
     binary = prepare_binary(image, threshold)
     segments = METHODS[method](binary)
-    if method != "hybrid":
+    if method not in ("hybrid", "unet"):
         # the basic methods get a simple noise filter so the comparison is fair
         segments = remove_noise(segments)
     segments.sort(key=lambda s: s.box[0])  # left -> right = reading order
@@ -476,9 +526,13 @@ def draw_boxes(image, segments):
     vis = image.copy()
     if vis.ndim == 2:
         vis = cv2.cvtColor(vis, cv2.COLOR_GRAY2BGR)
+    # Line and text size grow with the image, so they stay visible on big photos.
+    size = max(vis.shape[:2])
+    thick = max(1, round(size / 300))
+    font = max(0.35, size / 700)
     for i, s in enumerate(segments):
         x, y, w, h = s.box
-        cv2.rectangle(vis, (x - 1, y - 1), (x + w, y + h), (0, 200, 0), 1)
-        cv2.putText(vis, str(i + 1), (x, max(10, y - 3)), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.35, (0, 0, 255), 1, cv2.LINE_AA)
+        cv2.rectangle(vis, (x - thick, y - thick), (x + w, y + h), (0, 200, 0), thick)
+        cv2.putText(vis, str(i + 1), (x, max(int(30 * font), y - 3 * thick)),
+                    cv2.FONT_HERSHEY_SIMPLEX, font, (0, 0, 255), thick, cv2.LINE_AA)
     return vis
