@@ -3,12 +3,13 @@ baseline_knn.py
 
 Task 3, first approach: a K-Nearest Neighbours (KNN) baseline on MNIST.
 
-instead of a CNN: KNN is one of the simplest ML methods -
+Why start here instead of a CNN: KNN is one of the simplest ML methods -
 for each test image, it finds the K most visually similar training images
 (by raw pixel distance) and takes a majority vote of their labels. No
 training/learning happens in the usual sense - it just memorises the data.
 
-Goal: get ANY real accuracy number, as a baseline.
+Goal today: get ANY real accuracy number, so next week's CNN has something
+concrete to compare against and beat.
 """
 
 import time
@@ -17,12 +18,20 @@ from torchvision import datasets, transforms
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 
-transform = transforms.ToTensor()
-train_data = datasets.MNIST(root="data", train=True, download=True, transform=transform)
-test_data = datasets.MNIST(root="data", train=False, download=True, transform=transform)
+from pathlib import Path
 
-# Using a subset for speed up - KNN compares every test image against every training image, so it gets slow with the full 60,000. We can
-# scale this up later.
+# Paths are worked out from this file's location, so the script works from any
+# folder. This file lives in src/<folder>/, so the repository root is two
+# levels up.
+ROOT = Path(__file__).resolve().parents[2]
+
+transform = transforms.ToTensor()
+train_data = datasets.MNIST(root=ROOT / "data", train=True, download=True, transform=transform)
+test_data = datasets.MNIST(root=ROOT / "data", train=False, download=True, transform=transform)
+
+# Using a subset for speed on this first pass - KNN compares every test image
+# against every training image, so it gets slow with the full 60,000. We can
+# scale this up later once the basic pipeline is proven to work.
 N_TRAIN = 5000
 N_TEST = 1000
 

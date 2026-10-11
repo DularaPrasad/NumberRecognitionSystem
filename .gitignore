@@ -1,15 +1,35 @@
-# Virtual environment 
-venv/
+# ---------------------------------------------------------------
+# .gitignore for NumberRecognitionSystem
+#
+# A leading "/" means "only at the repository root", so these rules do not
+# accidentally hide a folder with the same name inside src/ (for example a
+# teammate's src/segmentation/data/ folder).
+# ---------------------------------------------------------------
 
-# Downloaded datasets 
-data/
+# Virtual environments: every person builds their own with requirements.txt
+/venv/
+/.venv/
 
-# Python cache files
+# Downloaded MNIST dataset (the scripts re-download it automatically)
+/data/
+
+# Python cache files (these can appear in any folder)
 __pycache__/
-*.pyc
+*.py[cod]
 
-venv/
-__pycache__/
-task2_segmentation/data/
-task2_segmentation/digits/
-task2_segmentation/outputs/
+# Jupyter notebook autosaves
+.ipynb_checkpoints/
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local settings and secrets
+.env
+
+# NOT ignored on purpose:
+#   results/       plots used as evidence in the worklogs and reports
+#   saved_models/  trained weights (.pth), 

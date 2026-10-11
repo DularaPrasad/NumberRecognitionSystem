@@ -3,7 +3,12 @@ resnet_model.py
 
 Task 3, final comparison model: a small ResNet (Residual Network) for MNIST.
 
-Design decisions (documented so the comparison is fair and defensible):
+The key idea (He et al., "Deep Residual Learning for Image Recognition",
+2015): instead of each block learning y = F(x), it learns y = F(x) + x.
+The input x is carried around the convolutions by a "skip connection" and
+added back onto the output. This helps deeper networks train reliably.
+
+Design decisions:
 1. A compact ResNet built from scratch, NOT the full ResNet-18. ResNet-18
    was designed for 224x224 colour photos and has ~11 million parameters,
    which is far more than 28x28 grayscale digits need.
@@ -20,12 +25,23 @@ from torchvision import datasets, transforms
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 
+from pathlib import Path
+
+# Paths are worked out from this file's location, so the script works from any
+# folder. This file lives in src/<folder>/, so the repository root is two
+# levels up.
+ROOT = Path(__file__).resolve().parents[2]
+RESULTS = ROOT / "results"              # saved plots
+RESULTS.mkdir(exist_ok=True)
+SAVED_MODELS = ROOT / "saved_models"    # saved model weights (.pth)
+SAVED_MODELS.mkdir(exist_ok=True)
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 transform = transforms.ToTensor()
-train_data = datasets.MNIST(root="data", train=True, download=True, transform=transform)
-test_data = datasets.MNIST(root="data", train=False, download=True, transform=transform)
+train_data = datasets.MNIST(root=ROOT / "data", train=True, download=True, transform=transform)
+test_data = datasets.MNIST(root=ROOT / "data", train=False, download=True, transform=transform)
 
 BATCH_SIZE = 64
 train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
@@ -172,8 +188,8 @@ for i in range(10):
         plt.text(j, i, str(cm[i, j]), ha="center", va="center",
                   color=text_color, fontsize=8)
 plt.tight_layout()
-plt.savefig("resnet_confusion_matrix.png")
-print("Saved confusion matrix to resnet_confusion_matrix.png")
+plt.savefig(RESULTS / "resnet_confusion_matrix.png")
+print("Saved confusion matrix to results/resnet_confusion_matrix.png")
 plt.show()
 
 plt.figure()
@@ -181,9 +197,9 @@ plt.plot(range(1, EPOCHS + 1), train_losses, marker="o")
 plt.xlabel("Epoch")
 plt.ylabel("Training loss")
 plt.title("ResNet training loss over epochs")
-plt.savefig("resnet_training_curve.png")
-print("Saved training curve to resnet_training_curve.png")
+plt.savefig(RESULTS / "resnet_training_curve.png")
+print("Saved training curve to results/resnet_training_curve.png")
 plt.show()
 
-torch.save(model.state_dict(), "resnet_model.pth")
-print("Saved trained model to resnet_model.pth")
+torch.save(model.state_dict(), SAVED_MODELS / "resnet_model.pth")
+print("Saved trained model to saved_models/resnet_model.pth")

@@ -14,14 +14,25 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 
+from pathlib import Path
+
+# Paths are worked out from this file's location, so the script works from any
+# folder. This file lives in src/<folder>/, so the repository root is two
+# levels up.
+ROOT = Path(__file__).resolve().parents[2]
+RESULTS = ROOT / "results"              # saved plots
+RESULTS.mkdir(exist_ok=True)
+SAVED_MODELS = ROOT / "saved_models"    # saved model weights (.pth)
+SAVED_MODELS.mkdir(exist_ok=True)
+
 # Use the GPU if it's available 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-# Same dataset loading as before in KNN model.
+# Same dataset loading as before.
 transform = transforms.ToTensor()
-train_data = datasets.MNIST(root="data", train=True, download=True, transform=transform)
-test_data = datasets.MNIST(root="data", train=False, download=True, transform=transform)
+train_data = datasets.MNIST(root=ROOT / "data", train=True, download=True, transform=transform)
+test_data = datasets.MNIST(root=ROOT / "data", train=False, download=True, transform=transform)
 
 # DataLoader feeds images to the model in small batches instead of all at
 # once, and shuffle=True mixes up the order each epoch so the model doesn't
@@ -35,17 +46,15 @@ class SimpleCNN(nn.Module):
     def __init__(self):
         super().__init__()
         # Conv block 1: 16 filters, each learning to detect one simple
-        # pattern (an edge, a curve). padding=1 keeps the output the same 28x28 size as the input.
+        # pattern (an edge, a curve). padding=1 keeps the output the same
+        # 28x28 size as the input.
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
-        
         # Conv block 2: 32 filters, built on top of block 1's output, so
         # they can combine simple patterns into more complex shapes.
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
-
         # Shrinks the image by half each time it's used, keeping only the
         # strongest signal in each small region.
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        
         # Final decision layer: from 32*7*7 flattened features to 10 scores,
         # one per digit.
         self.fc1 = nn.Linear(32 * 7 * 7, 10)
@@ -60,6 +69,9 @@ class SimpleCNN(nn.Module):
 
 
 model = SimpleCNN().to(device)
+
+total_params = sum(p.numel() for p in model.parameters())
+print(f"Total trainable parameters: {total_params:,}")
 
 criterion = nn.CrossEntropyLoss()                      # measures how wrong the predictions are
 optimizer = optim.Adam(model.parameters(), lr=0.001)   # adjusts the model to reduce that error
@@ -129,7 +141,7 @@ for digit in range(10):
     print(f"  Digit {digit}: {digit_acc:.2f}% ({digit_correct}/{digit_total})")
 
 # Plot the confusion matrix as a heatmap, with the actual counts written on
-# each cell so it's readable as a standalone image .
+# each cell so it's readable as a standalone image for the report.
 plt.figure(figsize=(7, 6))
 plt.imshow(cm, cmap="Blues")
 plt.colorbar()
@@ -146,8 +158,8 @@ for i in range(10):
         plt.text(j, i, str(cm[i, j]), ha="center", va="center",
                   color=text_color, fontsize=8)
 plt.tight_layout()
-plt.savefig("cnn_confusion_matrix.png")
-print("Saved confusion matrix to cnn_confusion_matrix.png")
+plt.savefig(RESULTS / "cnn_confusion_matrix.png")
+print("Saved confusion matrix to results/cnn_confusion_matrix.png")
 plt.show()
 
 # Save a plot showing loss going down over training - visual evidence of learning.
@@ -158,14 +170,14 @@ plt.plot(range(1, EPOCHS + 1), train_losses, marker="o")
 plt.xlabel("Epoch")
 plt.ylabel("Training loss")
 plt.title("CNN training loss over epochs")
-plt.savefig("cnn_training_curve.png")
-print("Saved training curve to cnn_training_curve.png")
+plt.savefig(RESULTS / "cnn_training_curve.png")
+print("Saved training curve to results/cnn_training_curve.png")
 plt.show()
 
 # Save the trained model so we don't have to retrain it from scratch every
-# time we want to use it.
+# time we want to use it (e.g. later, to test it on real photos, or in a GUI).
 # state_dict() is a dictionary holding every one of the model's learned
 # numbers - every filter value, every weight - essentially the entire result
 # of training, packaged up.
-torch.save(model.state_dict(), "cnn_model.pth")
-print("Saved trained model to cnn_model.pth")
+torch.save(model.state_dict(), SAVED_MODELS / "cnn_model.pth")
+print("Saved trained model to saved_models/cnn_model.pth")
