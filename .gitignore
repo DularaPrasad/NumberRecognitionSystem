@@ -7,3 +7,9 @@ data/
 # Python cache files
 __pycache__/
 *.pyc
+
+venv/
+__pycache__/
+task2_segmentation/data/
+task2_segmentation/digits/
+task2_segmentation/outputs/
