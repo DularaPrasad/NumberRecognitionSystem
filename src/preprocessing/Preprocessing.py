@@ -15,9 +15,14 @@ def remove_noise(gray: np.ndarray, ksize: int = 3) -> np.ndarray: #removes noise
     return cv2.medianBlur(gray, ksize)
 
 
-def binarize(gray: np.ndarray, invert: bool = True) -> np.ndarray: #converting greyscale images to black/white
+def binarize(gray: np.ndarray, invert: bool = True, method: str = "otsu") -> np.ndarray: #converting greyscale images to black/white
 
     flag = cv2.THRESH_BINARY_INV if invert else cv2.THRESH_BINARY
+    if method == "adaptive":
+        # a separate threshold for each small area, so shadows do not break it
+        block = max(15, (min(gray.shape) // 4) | 1)   # odd window size
+        C = 10 if invert else -10
+        return cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, flag, block, C)
     _, binary = cv2.threshold(gray, 0, 255, flag + cv2.THRESH_OTSU)
     return binary
 
@@ -53,11 +58,12 @@ def preprocess_clean(image: np.ndarray, size: tuple = (28, 28)) -> np.ndarray:
 
 
 def preprocess_photo(image: np.ndarray, size: tuple = (28, 28),
-    apply_deskew: bool = False):
+    apply_deskew: bool = False, method: str = "otsu"):
 
     gray = to_grayscale(image)
     denoised = remove_noise(gray)
-    binary = binarize(denoised)
+    invert = bool(np.median(denoised) > 127)   # dark ink on light paper: make the ink white
+    binary = binarize(denoised, invert=invert, method=method)
     if apply_deskew:
         binary = deskew(binary)
     resized = resize(binary, size)
