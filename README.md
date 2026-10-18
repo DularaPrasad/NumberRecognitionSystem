@@ -72,15 +72,16 @@ The first run downloads MNIST into `data/`. Each script prints its parameter cou
 
 | Model | Parameters | Test accuracy | Training time |
 |---|---|---|---|
-| CNN | 20,490 | 98.96% | 46.7 s |
+| CNN | 20,490 | 98.75% | 46.7 s |
 | MLP | 109,386 | 97.84% | 32.6 s |
 | LeNet-5 | 61,706 | 98.87% | 35.2 s |
 | ResNet | 77,754 | **99.22%** | 53.3 s |
 
 All models: 10 epochs, batch size 64, Adam (learning rate 0.001), full training set, one run each. Training times were measured on an NVIDIA RTX 4080.
+The CNN's saved model comes from a repeat of the 10-epoch run (98.75%); its first run scored 98.96%. The training time is from the first run.
 
-- **Convolution is the dividing line.** The MLP trails the three convolutional models by about 1 to 1.4 points, even though it has the most parameters.
-- **The ResNet is the most accurate, but only 0.26 points above the simple CNN.** That is about as large as the run-to-run variation seen between identical runs, so treat the ranking as provisional until the models are tested on real handwritten photos.
+- **Convolution is the dividing line.** The MLP trails the three convolutional models by about 0.9 to 1.4 points, even though it has the most parameters.
+- **The ResNet is the most accurate.** It is 0.47 points above the saved CNN (0.26 above the CNN's first run). Identical CNN runs differ by about 0.2 points, so the ResNet is above both, but each model was run once. Treat the ranking as provisional until the models are tested on real handwritten photos.
 - **The KNN baseline (`baseline_knn.py`) is not part of the comparison.** It was used as an early check that the pipeline worked, and was replaced by the models above on the tutor's advice.
 
 ### Saved models

@@ -3,7 +3,7 @@ lenet5_model.py
 
 Task 3, comparison model 2 of 3: LeNet-5, adapted for MNIST.
 LeNet-5 is the architecture Yann LeCun designed in 1998 specifically for
-handwritten digit recognition.
+handwritten digit recognition - directly on-topic for this project.
 
 Two deliberate, documented deviations from the 1998 original:
 1. ReLU + max-pooling instead of the original tanh + average-pooling -
@@ -22,6 +22,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+from architectures import LeNet5
 
 from pathlib import Path
 
@@ -44,30 +45,6 @@ test_data = datasets.MNIST(root=ROOT / "data", train=False, download=True, trans
 BATCH_SIZE = 64
 train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=BATCH_SIZE, shuffle=False)
-
-
-class LeNet5(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # padding=2 here has the same effect as padding the input image to
-        # 32x32 would have (LeNet-5's original input size) - it keeps every
-        # other layer's original dimensions intact for a 28x28 input.
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, padding=2)
-        self.conv2 = nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        x = self.pool(self.relu(self.conv1(x)))   # 28x28 -> 14x14, 6 channels
-        x = self.pool(self.relu(self.conv2(x)))   # 14x14 -> 10x10 -> 5x5, 16 channels
-        x = x.view(x.size(0), -1)                  # flatten to 400 (16*5*5)
-        x = self.relu(self.fc1(x))                  # 400 -> 120
-        x = self.relu(self.fc2(x))                  # 120 -> 84
-        x = self.fc3(x)                              # 84 -> 10
-        return x
 
 
 model = LeNet5().to(device)

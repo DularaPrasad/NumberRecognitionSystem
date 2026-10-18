@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+from architectures import SimpleMLP
 
 from pathlib import Path
 
@@ -37,26 +38,6 @@ test_data = datasets.MNIST(root=ROOT / "data", train=False, download=True, trans
 BATCH_SIZE = 64
 train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=BATCH_SIZE, shuffle=False)
-
-
-class SimpleMLP(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # No convolution, no pooling - three fully connected layers only.
-        # Input is 28*28=784: every pixel treated as a separate, unrelated
-        # number, exactly like KNN's flattening. The model has no built-in
-        # concept of "these two pixels are physically next to each other."
-        self.fc1 = nn.Linear(28 * 28, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 10)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        x = x.view(x.size(0), -1)   # flatten immediately - no conv layers first
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
 
 
 model = SimpleMLP().to(device)

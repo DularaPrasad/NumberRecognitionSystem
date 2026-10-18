@@ -1,0 +1,17 @@
+condition,preprocessing,model,numbers,number_accuracy,count_accuracy,digit_accuracy
+clean,adaptive,cnn,100,0.96,0.99,0.9913793103448276
+clean,adaptive,mlp,100,0.86,0.99,0.9626436781609196
+clean,adaptive,lenet5,100,0.95,0.99,0.9885057471264368
+clean,adaptive,resnet,100,0.97,0.99,0.9942528735632183
+clean,otsu,cnn,100,0.95,0.97,0.9940828402366864
+clean,otsu,mlp,100,0.86,0.97,0.9674556213017751
+clean,otsu,lenet5,100,0.94,0.97,0.9911242603550295
+clean,otsu,resnet,100,0.96,0.97,0.9970414201183432
+shadow,adaptive,cnn,100,0.85,0.94,0.9722222222222222
+shadow,adaptive,mlp,100,0.84,0.94,0.9629629629629629
+shadow,adaptive,lenet5,100,0.86,0.94,0.9753086419753086
+shadow,adaptive,resnet,100,0.9,0.94,0.9876543209876543
+shadow,otsu,cnn,100,0.76,0.85,0.9663299663299664
+shadow,otsu,mlp,100,0.75,0.85,0.9595959595959596
+shadow,otsu,lenet5,100,0.77,0.85,0.9730639730639731
+shadow,otsu,resnet,100,0.78,0.85,0.9764309764309764

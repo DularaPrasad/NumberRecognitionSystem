@@ -13,6 +13,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
+from architectures import SimpleCNN
 
 from pathlib import Path
 
@@ -25,7 +26,7 @@ RESULTS.mkdir(exist_ok=True)
 SAVED_MODELS = ROOT / "saved_models"    # saved model weights (.pth)
 SAVED_MODELS.mkdir(exist_ok=True)
 
-# Use the GPU if it's available 
+# Use the GPU if it's available - should print "cuda" on your RTX 4080.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
@@ -40,32 +41,6 @@ test_data = datasets.MNIST(root=ROOT / "data", train=False, download=True, trans
 BATCH_SIZE = 64
 train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=BATCH_SIZE, shuffle=False)
-
-
-class SimpleCNN(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # Conv block 1: 16 filters, each learning to detect one simple
-        # pattern (an edge, a curve). padding=1 keeps the output the same
-        # 28x28 size as the input.
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
-        # Conv block 2: 32 filters, built on top of block 1's output, so
-        # they can combine simple patterns into more complex shapes.
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
-        # Shrinks the image by half each time it's used, keeping only the
-        # strongest signal in each small region.
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        # Final decision layer: from 32*7*7 flattened features to 10 scores,
-        # one per digit.
-        self.fc1 = nn.Linear(32 * 7 * 7, 10)
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        x = self.pool(self.relu(self.conv1(x)))   # 28x28 -> 14x14
-        x = self.pool(self.relu(self.conv2(x)))   # 14x14 -> 7x7
-        x = x.view(x.size(0), -1)                 # flatten each image to one row
-        x = self.fc1(x)
-        return x
 
 
 model = SimpleCNN().to(device)
