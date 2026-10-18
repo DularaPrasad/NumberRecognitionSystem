@@ -26,6 +26,7 @@ NumberRecognitionSystem/
 │   │   ├── lenet5_model.py
 │   │   └── resnet_model.py
 │   └── exploration/      load_mnist.py: inspect the MNIST data
+│   └── evaluation/       plot_training_curves.py
 ├── results/              plots saved by the scripts (confusion matrices, training curves)
 └── saved_models/         trained model weights (.pth)
 ```
