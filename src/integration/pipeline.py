@@ -52,7 +52,7 @@ from Preprocessing import preprocess_photo   # noqa: E402  Task 1
 from segmentation import segment_number      # noqa: E402  Task 2
 
 MODEL_NAMES = ("cnn", "mlp", "lenet5", "resnet")
-SEGMENTERS = ("unet", "hybrid", "projection", "connected_components", "contours")
+SEGMENTERS = ("unet", "resnet", "mobilenet", "fcdensenet", "hybrid", "projection", "connected_components", "contours")
 
 # Does the installed Preprocessing.py have the optional method="adaptive"?
 _PREPROCESS_HAS_METHOD = "method" in inspect.signature(preprocess_photo).parameters

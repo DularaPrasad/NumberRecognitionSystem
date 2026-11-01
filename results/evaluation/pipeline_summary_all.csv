@@ -1,0 +1,16 @@
+condition,preprocessing,segmenter,model,numbers,number_accuracy,count_accuracy,digit_accuracy
+clean,adaptive,unet,resnet,100,0.96,0.98,0.9941690962099126
+clean,adaptive,resnet,resnet,100,0.97,0.99,0.9942028985507246
+clean,adaptive,mobilenet,resnet,100,0.97,0.99,0.9942363112391931
+clean,adaptive,fcdensenet,resnet,100,0.93,0.95,0.9940119760479041
+clean,adaptive,hybrid,resnet,100,0.97,0.99,0.9942528735632183
+shadow,adaptive,unet,resnet,100,0.92,0.96,0.9879518072289156
+shadow,adaptive,resnet,resnet,100,0.89,0.93,0.9875389408099688
+shadow,adaptive,mobilenet,resnet,100,0.93,0.97,0.9880952380952381
+shadow,adaptive,fcdensenet,resnet,100,0.88,0.92,0.9873015873015873
+shadow,adaptive,hybrid,resnet,100,0.92,0.98,0.9826589595375722
+touching,adaptive,unet,resnet,100,0.53,0.78,0.8527131782945736
+touching,adaptive,resnet,resnet,100,0.52,0.77,0.86328125
+touching,adaptive,mobilenet,resnet,100,0.43,0.75,0.8259109311740891
+touching,adaptive,fcdensenet,resnet,100,0.52,0.79,0.8571428571428571
+touching,adaptive,hybrid,resnet,100,0.29,0.47,0.8410596026490066
