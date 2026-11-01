@@ -11,9 +11,9 @@ WHAT IS MNIST?
         - 10,000 "test"  images (used to check a model)
 
 HOW THIS FILE WORKS
-    1. It first looks for the original MNIST files in  data/MNIST/raw/
-       (this is exactly where torchvision saves them, so if you already ran
-       the "bonus MNIST test" from the setup guide, the files are there).
+    1. It first looks for the original MNIST files in  data/MNIST/raw/  next
+       to this file, then in the group repository's top-level data/MNIST/raw/
+       (where torchvision and the other tasks save them).
     2. If they are missing, it asks torchvision to download them.
     3. It reads the files and returns  (images, labels)  as NumPy arrays.
 
@@ -55,12 +55,20 @@ def _read_idx(path):
     return np.frombuffer(data, dtype=np.uint8, offset=offset).reshape(shape)
 
 
+# In the group repository this file is in src/segmentation/, and the other
+# tasks (and torchvision) keep MNIST in the repository's top-level data/ folder.
+# Look there too, so MNIST is not downloaded twice.
+REPO_RAW_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                            "data", "MNIST", "raw")
+
+
 def _find_file(stem):
     """Return the path of e.g. 't10k-images-idx3-ubyte' (zipped or not)."""
-    for name in (stem, stem + ".gz"):
-        path = os.path.join(RAW_DIR, name)
-        if os.path.exists(path):
-            return path
+    for folder in (RAW_DIR, REPO_RAW_DIR):
+        for name in (stem, stem + ".gz"):
+            path = os.path.join(folder, name)
+            if os.path.exists(path):
+                return path
     return None
 
 

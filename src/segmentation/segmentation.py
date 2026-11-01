@@ -479,11 +479,18 @@ def to_mnist_format(mask):
 # ==========================================================================
 # 7. MAIN ENTRY POINT - this is what other team members call
 # ==========================================================================
-def segment_unet(binary):
-    """Technique E: the TRAINED U-Net neural network (see unet_segment.py).
-    Imported only when used, so the other methods work without PyTorch."""
-    from unet_segment import segment_unet as run_unet
-    return run_unet(binary)
+def _network(name):
+    """Techniques E-H: the TRAINED neural networks (see seg_models.py and
+    nn_segment.py). Imported only when used, so the rule-based methods still
+    work without PyTorch."""
+    def run(binary):
+        from nn_segment import segment_nn
+        return segment_nn(binary, name)
+    run.__name__ = f"segment_{name}"
+    return run
+
+
+NEURAL_NETWORKS = ("unet", "resnet", "mobilenet", "fcdensenet")
 
 
 METHODS = {
@@ -491,7 +498,10 @@ METHODS = {
     "connected_components": segment_connected_components,
     "contours": segment_contours,
     "hybrid": segment_hybrid,
-    "unet": segment_unet,
+    "unet": _network("unet"),
+    "resnet": _network("resnet"),
+    "mobilenet": _network("mobilenet"),
+    "fcdensenet": _network("fcdensenet"),
 }
 
 
@@ -501,8 +511,9 @@ def segment_number(image, method="hybrid", threshold="otsu", return_binary=False
     Args:
         image:   the number image (grayscale or colour, any size).
         method:  one of "projection", "connected_components", "contours",
-                 "hybrid" (best rule-based) or "unet" (trained neural network;
-                 needs models/unet_seg.pt from train_unet.py).
+                 "hybrid" (rule-based), or a trained neural network:
+                 "unet", "resnet", "mobilenet", "fcdensenet"
+                 (needs models/<name>_seg.pt from train_seg.py).
         threshold: "otsu" or "adaptive" (see prepare_binary).
         return_binary: also return the black/white image (for display).
 
@@ -514,7 +525,7 @@ def segment_number(image, method="hybrid", threshold="otsu", return_binary=False
         raise ValueError(f"Unknown method '{method}'. Choose from {list(METHODS)}")
     binary = prepare_binary(image, threshold)
     segments = METHODS[method](binary)
-    if method not in ("hybrid", "unet"):
+    if method != "hybrid" and method not in NEURAL_NETWORKS:
         # the basic methods get a simple noise filter so the comparison is fair
         segments = remove_noise(segments)
     segments.sort(key=lambda s: s.box[0])  # left -> right = reading order

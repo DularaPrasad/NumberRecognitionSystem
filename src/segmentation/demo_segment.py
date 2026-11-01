@@ -12,7 +12,7 @@ EXAMPLES (run inside the project folder with the venv switched on)
   Use your OWN image (e.g. a photo of a number you wrote on paper):
       python demo_segment.py --image my_number.jpg --threshold adaptive
 
-  Compare all five techniques on the same image:
+  Compare all methods on the same image:
       python demo_segment.py --number 4071 --all
 
   Also open the picture in a window:
@@ -31,7 +31,7 @@ import matplotlib
 import numpy as np
 
 from number_builder import DIGIT_FOLDER, OUTPUT_FOLDER, build_number_from_folder, export_digit_folder
-from segmentation import METHODS, draw_boxes, segment_number
+from segmentation import METHODS, NEURAL_NETWORKS, draw_boxes, segment_number
 
 
 def show_result(image, method, threshold, title):
@@ -44,12 +44,12 @@ def show_result(image, method, threshold, title):
         ("1. Input image", image),
         ("2. Black & white (binary) - ink is white", binary),
     ]
-    if method == "unet":
+    if method in NEURAL_NETWORKS:
         # show what the network decided for every pixel
-        from unet_segment import pixel_labels
+        from nn_segment import pixel_labels
         colours = np.array([[0, 0, 0], [214, 120, 42], [52, 104, 235]], np.uint8)  # BGR: black, blue, orange
-        panels.append(("U-Net pixel labels: blue = inside a digit, orange = border between digits",
-                       colours[pixel_labels(binary)]))
+        panels.append((f"{method} pixel labels: blue = inside a digit, orange = border between digits",
+                       colours[pixel_labels(binary, method)]))
     panels.append((f"{len(panels) + 1}. Found {len(segments)} digit(s) with '{method}' (numbered left to right)",
                    draw_boxes(image, segments)))
     rows = len(panels) + 1
@@ -81,8 +81,8 @@ def main():
     src.add_argument("--image", help="path to an image file")
     src.add_argument("--number", help="build this number from the digit folder, e.g. 4071")
     ap.add_argument("--method", default="unet", choices=list(METHODS),
-                    help="unet (trained network, default) or one of the rule-based methods")
-    ap.add_argument("--all", action="store_true", help="run all five methods")
+                    help="a trained network (unet, resnet, mobilenet, fcdensenet) or a rule-based method")
+    ap.add_argument("--all", action="store_true", help="run all methods")
     ap.add_argument("--threshold", default="otsu", choices=["otsu", "adaptive"])
     ap.add_argument("--gap", type=int, default=None, help="with --number: gap in px (negative = touching)")
     ap.add_argument("--paper", action="store_true", help="with --number: paper/photo look")

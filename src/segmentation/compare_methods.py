@@ -14,8 +14,9 @@ HOW IT WORKS
         - Noisy         : random dots of "dust" added
         - Paper photo   : dark ink on unevenly lit paper with grain
   2. Because WE built the images, we know where every digit really is.
-  3. Run all 5 techniques (4 rule-based + the trained U-Net) on every
-     image and score them. The test numbers are built from MNIST TEST
+  3. Run every technique (4 rule-based + the 4 trained networks) on every
+     image and score them on number accuracy.
+     (evaluate_models.py gives the FULL comparison of the 4 networks.) The test numbers are built from MNIST TEST
      digits, which the U-Net never saw during training.
 
 HOW A RESULT IS SCORED
@@ -65,9 +66,12 @@ METHOD_NAMES = {
     "connected_components": "Connected components",
     "contours": "Contours",
     "hybrid": "Hybrid (rule-based)",
-    "unet": "U-Net (trained)",
+    "unet": "U-Net",
+    "resnet": "ResNet-18 (FCN)",
+    "mobilenet": "MobileNetV3 (LR-ASPP)",
+    "fcdensenet": "FC-DenseNet",
 }
-COLOURS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]  # one colour per method
+COLOURS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]  # one per method
 
 
 def score(segments, binary, owner, n_digits, min_cov=0.85, min_pur=0.90):
@@ -117,7 +121,7 @@ def run(n_per_condition=300, seed=42):
             tests.append((img, owner, n, "".join(str(labels[i]) for i in idx)))
         examples[cond] = tests[0]
 
-        for method in METHODS:
+        for method in METHOD_NAMES:
             num_ok = dig_ok = cnt_ok = total_digits = 0
             start = time.perf_counter()
             for img, owner, n, _ in tests:
@@ -170,7 +174,7 @@ def save_chart(rows):
     ax.set_axisbelow(True)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
-    ax.legend(frameon=False, ncol=len(methods), loc="upper center", bbox_to_anchor=(0.5, -0.1))
+    ax.legend(frameon=False, ncol=4, loc="upper center", bbox_to_anchor=(0.5, -0.1))
     fig.tight_layout()
     path = os.path.join(RESULTS, "segmentation_comparison.png")
     fig.savefig(path, dpi=150)
@@ -180,9 +184,9 @@ def save_chart(rows):
 
 def save_examples(examples):
     """Grid of pictures: one row per condition, one column per method."""
-    fig, axes = plt.subplots(len(examples), len(METHODS), figsize=(3.5 * len(METHODS), 2.0 * len(examples)))
+    fig, axes = plt.subplots(len(examples), len(METHOD_NAMES), figsize=(3.2 * len(METHOD_NAMES), 2.0 * len(examples)))
     for r, (cond, (img, owner, n, text)) in enumerate(examples.items()):
-        for c, method in enumerate(METHODS):
+        for c, method in enumerate(METHOD_NAMES):
             segs = segment_number(img, method=method)
             vis = draw_boxes(img, segs)
             ax = axes[r, c]

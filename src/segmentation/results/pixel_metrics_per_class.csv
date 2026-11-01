@@ -1,0 +1,13 @@
+model,class,IoU,Dice_F1,precision,recall
+U-Net,background,99.905,99.952,99.992,99.913
+U-Net,inside digit,97.222,98.592,99.132,98.057
+U-Net,border,56.574,72.265,60.42,89.886
+ResNet-18 (FCN),background,99.877,99.939,99.964,99.913
+ResNet-18 (FCN),inside digit,96.771,98.359,99.096,97.633
+ResNet-18 (FCN),border,55.841,71.664,59.219,90.731
+MobileNetV3 (LR-ASPP),background,99.655,99.827,99.738,99.917
+MobileNetV3 (LR-ASPP),inside digit,94.908,97.388,98.427,96.37
+MobileNetV3 (LR-ASPP),border,53.828,69.984,65.14,75.607
+FC-DenseNet,background,99.886,99.943,99.993,99.894
+FC-DenseNet,inside digit,96.752,98.349,98.69,98.01
+FC-DenseNet,border,57.517,73.03,62.145,88.537

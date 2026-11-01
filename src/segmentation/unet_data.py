@@ -44,23 +44,31 @@ BACKGROUND, INTERIOR, BORDER = 0, 1, 2
 BORDER_WIDTH = 2   # how many pixels on each side of a contact count as "border"
 
 
+def digit_owner_map(binary, owner):
+    """Which digit (0, 1, 2, ...) each INK pixel belongs to, -1 for background.
+
+    Some ink pixels (soft edges of the pen stroke) have no owner. Each one gets
+    the owner of the nearest owned pixel, if that pixel is very close. Ink far
+    from every digit is noise and stays background (-1)."""
+    ink = binary > 0
+    unowned = owner < 0
+    if unowned.all():
+        return np.full(binary.shape, -1, np.int32)
+    dist, (iy, ix) = ndimage.distance_transform_edt(unowned, return_indices=True)
+    full_owner = owner[iy, ix].astype(np.int32)
+    full_owner[~ink | (dist > 2)] = -1
+    return full_owner
+
+
 def make_labels(binary, owner, n_digits):
     """Turn the 'which digit owns this pixel' map into 0/1/2 pixel labels.
 
     binary : black/white image the network will see (ink = 255)
     owner  : owner[y, x] = digit number (0, 1, 2, ...) or -1 for background
     """
-    ink = binary > 0
-
-    # Some ink pixels (soft edges of the pen stroke) have no owner. Give each
-    # one the owner of the nearest owned pixel, if that pixel is very close.
-    # Ink far from every digit is noise and stays background.
-    unowned = owner < 0
-    if unowned.all():
+    full_owner = digit_owner_map(binary, owner)
+    if (full_owner < 0).all():
         return np.zeros(binary.shape, np.uint8)
-    dist, (iy, ix) = ndimage.distance_transform_edt(unowned, return_indices=True)
-    full_owner = owner[iy, ix]
-    full_owner[~ink | (dist > 2)] = -1
 
     # A pixel is "border" if it belongs to one digit but is within
     # BORDER_WIDTH pixels of another digit.
