@@ -24,9 +24,9 @@ report.
 
 | Member | Responsibility | Folders |
 |---|---|---|
-| Declan McNamara | Task 1: image preprocessing. The GUI. | `src/preprocessing`, `src/gui` |
+| Declan McNamara | Task 1: image preprocessing. The GUI, including both ways of getting an input image. | `src/preprocessing`, `src/gui` |
 | Charith Jayashan | Task 2: image segmentation (rule-based methods and four trained networks) | `src/segmentation` |
-| Dulara Prasad | Task 3: digit recognition models. Task 4: integration and evaluation. The "build from a digit folder" option of the GUI. | `src/models`, `src/integration`, `src/evaluation`, `src/gui/digit_folder.py` |
+| Dulara Prasad | Task 3: digit recognition models. Task 4: integration and evaluation. | `src/models`, `src/integration`, `src/evaluation` |
 
 ## Quick start
 
@@ -45,8 +45,8 @@ python src\gui\app.py
   `venv\Scripts\activate` again.
 - The trained models are included in the repository (`saved_models/` for the digit models and
   `src/segmentation/models/` for the segmentation networks), so nothing has to be trained before use.
-- The GUI and the pipeline do not need the MNIST dataset. The training and evaluation scripts download MNIST into
-  `data/` the first time they run (internet needed once).
+- Reading images with the GUI and the pipeline does not need the MNIST dataset. The training and evaluation scripts,
+  and the GUI's "Create sample folder from MNIST" button, download MNIST the first time they run (internet needed once).
 - A GPU is optional. The code uses an NVIDIA GPU if PyTorch can see one and the CPU otherwise.
 - On macOS or Linux use forward slashes (`src/gui/app.py`) and `source venv/bin/activate`.
 
@@ -56,35 +56,39 @@ python src\gui\app.py
 python src\gui\app.py
 ```
 
-**Settings (top row).** Choose the digit model, the segmentation method and the thresholding method from the
-drop-down lists. Changing a setting re-reads the image that is on screen, which makes it easy to compare methods
-on the same picture. The defaults are `resnet`, `unet` and `adaptive`.
+**Pipeline settings (top).** Choose the digit model (`cnn`, `mlp`, `lenet5` or `resnet`), the segmentation network and
+the thresholding method (`adaptive` or `otsu`). Changing a setting re-reads the image that is on screen, which makes
+it easy to compare methods on the same picture. The defaults are `resnet`, U-Net and `adaptive`. The GUI offers the
+four trained segmentation networks (U-Net, ResNet-18 FCN, MobileNetV3 LR-ASPP and FC-DenseNet). The rule-based
+methods are used by the command line and the evaluation scripts.
 
-**Two ways to get an input image** (the brief asks for both):
+**Image source: two ways to get an input image** (the brief asks for both).
 
-| Button | What it does |
+| Control | What it does |
 |---|---|
-| **Load Image...** | Opens an image file (jpg, png, bmp or webp), for example a photo of a handwritten number. |
-| **Build from Digit Folder...** | Builds a picture of a number from a folder of single-digit images. Choose the folder, then type the digits to build (for example `4071`). Leave the box empty to get a random 4-digit number. The GUI then reads the picture it built and says whether the answer was right: `Built 4071: read correctly`. |
+| **Load Image...** | Opens an image file (jpg, png, bmp or webp), for example a photo or scan of a handwritten number. |
+| **Build From Digit Folder...** | Builds the picture of a number automatically from a folder of pictures of single digits, then reads it. See below. |
+| **Rebuild (new digits)** | Builds the same number again with new random pictures of each digit. Available after a build. |
+| **Save Image...** | Saves the image that is being read (the loaded or built picture, without the boxes) as a PNG or JPG. |
+| **View: Annotated / Preprocessed** | *Annotated* shows the image with a green box around each digit and the predicted digit and its confidence above it. *Preprocessed* shows the black and white image that segmentation receives, which shows why a photo went wrong. |
 
-**Results.** The image is shown with a green box around each digit and the predicted digit and its confidence above
-it. The recognised number is shown in large text on the right, with a table of the confidence of every digit.
-**Save Result Image...** saves the picture on screen (with the boxes) as a PNG or JPG, which is handy for the
-report.
+**Build From Digit Folder.** A dialog asks for:
 
-**Folders of single digits.** A folder of 50 sample digits is included (`digit_samples/`): five pictures of each
-digit, taken at random from the MNIST test set (a few pictures that break into separate pieces were skipped). To
-use your own digits, organise the folder in either of these ways (they can be mixed):
+- **Number to build:** 1 to 12 digits (the default is 4071).
+- **Digit folder:** a folder with sub-folders named `0` to `9`, each holding pictures of that digit. The first time,
+  click **Create sample folder from MNIST**, which fills the default folder with 20 MNIST pictures of every digit.
+  This downloads MNIST, so it needs internet once. The default folder is set by `DIGIT_FOLDER` in
+  `src/segmentation/number_builder.py`, it is shown in the dialog, and it is not stored in GitHub. **Browse...**
+  chooses another folder, for example one with your own digits.
+- **Spacing:** *Normal* (a gap of 4 to 10 pixels), *Close* (1 to 3 pixels) or *Touching* (the digits overlap, which is
+  the hardest case for segmentation).
+- **Photo-style paper background:** dark ink on uneven light paper, like a photo.
 
-1. One subfolder per digit, named `0` to `9`: `my_digits/7/anything.png`
-2. Files whose name starts with the digit: `my_digits/7.png`, `my_digits/7_a.png`, `my_digits/7-2.jpg`
+A random picture of each digit is used every time, so `7447` uses two different sevens and **Rebuild** gives
+different handwriting.
 
-There can be many pictures of a digit. A random one is used each time, so `7447` uses two different sevens. Every
-digit from the number that is typed must have at least one picture. The same builder can be used without the GUI:
-
-```
-python src\gui\digit_folder.py digit_samples 4071 --out built_4071.png
-```
+**Results.** The recognised number is shown in large text, with a table of the confidence of every digit. The status
+bar at the bottom shows where the image came from, the settings used and the time taken in milliseconds.
 
 ## How the system works
 
@@ -95,7 +99,8 @@ python src\gui\digit_folder.py digit_samples 4071 --out built_4071.png
             (white ink on black)       digit, left to right       each digit image
 ```
 
-**Image acquisition.** Load an image file, or build a picture from a folder of single-digit images (see above).
+**Image acquisition.** Load an image file, or build a picture from a folder of single-digit images (the GUI's
+*Build From Digit Folder*, which uses `number_builder.py` from Task 2).
 
 **Task 1: preprocessing** (`src/preprocessing/Preprocessing.py`). One small function for each step: grayscale,
 3 x 3 median blur (removes noise and keeps the edges sharp), thresholding, deskew (off by default), resize to
@@ -119,7 +124,8 @@ into a 20 x 20 box and centred on its centre of mass; thin pen lines are thicken
   digit, or 2 border (ink where two digits touch). Each separate patch of "inside" pixels becomes one digit, and the
   border pixels go to the nearest digit, so touching digits are cut where the network saw the contact.
 - No image was labelled by hand. `number_builder.py` glues MNIST digits into numbers and records which digit owns
-  every pixel, so the correct label of every pixel is known. A fresh set of examples is made every epoch.
+  every pixel, so the correct label of every pixel is known. A fresh set of examples is made every epoch. The GUI
+  uses the same builder to make a number from a folder of single digits.
 - All four networks were trained with the same settings (`train_seg.py`): 54,000 MNIST training digits for
   training and 6,000 held out for validation, weighted cross-entropy loss (border pixels x 4, because they are only
   about 0.3% of the pixels), Adam (learning rate 0.001, cosine schedule), 10 epochs of 120 batches of 32, seed 0.
@@ -221,7 +227,6 @@ rec.set_model("cnn")        # switch the digit model without reloading everythin
 |---|---|
 | `python src\evaluation\test_pipeline.py` | 16 of 16 checks pass |
 | `python src\evaluation\test_handoff.py` | 9 of 10 pass. The one failure is a known limitation: Otsu thresholding on a shadowed photo. |
-| `python src\evaluation\test_digit_folder.py` | 31 of 31 checks pass (the "build from a digit folder" feature) |
 | `python src\evaluation\check_saved_models.py` | the four saved digit models reproduce their reported MNIST accuracy |
 | `python src\segmentation\check_task2.py` | 10 of 10 checks pass |
 | `python src\evaluation\test_expression.py` | 36 of 36 checks pass (the prototype in `src/extension`) |
@@ -273,19 +278,18 @@ src/
   preprocessing/   Preprocessing.py            Task 1: grayscale, blur, thresholding, deskew, resize
   segmentation/    segmentation.py             Task 2: segment_number(), the four rule-based methods
                    seg_models.py, train_seg.py, nn_segment.py, evaluate_models.py   the four trained networks
-                   number_builder.py, unet_data.py, mnist_loader.py                  training data from MNIST
+                   number_builder.py, unet_data.py, mnist_loader.py                  training data from MNIST;
+                                               number_builder.py also builds numbers for the GUI
                    check_task2.py, demo_segment.py, compare_methods.py, models/*.pt
   models/          architectures.py            the four digit models (shared by training and the pipeline)
                    cnn_model.py, mlp_model.py, lenet5_model.py, resnet_model.py, baseline_knn.py
   integration/     pipeline.py                 NumberRecognizer: joins preprocessing, segmentation, recognition
   evaluation/      evaluate_pipeline.py        whole-system evaluation
-                   test_pipeline.py, test_handoff.py, test_digit_folder.py, test_expression.py,
+                   test_pipeline.py, test_handoff.py, test_expression.py,
                    check_saved_models.py, evaluate_saved_model.py, plot_training_curves.py
-  gui/             app.py                      the Tkinter GUI
-                   digit_folder.py             builds a number picture from a folder of single digits
+  gui/             app.py                      the Tkinter GUI (load an image, or build a number from a digit folder)
   exploration/     load_mnist.py               downloads MNIST and shows sample digits
   extension/       expression.py               unconnected prototype for the maths extension (see below)
-digit_samples/     50 sample digits from MNIST for the "build from a digit folder" option
 saved_models/      trained digit models (.pth)
 results/           plots, confusion matrices, training curves, evaluation tables (CSV)
 TestImages/        photos of handwritten numbers for testing
@@ -301,8 +305,9 @@ requirements.txt
 | `Trained model not found ... saved_models` | Pull the latest version from GitHub, or train it with `python src\models\<name>_model.py`. |
 | `Trained model not found ... src/segmentation/models` | Pull the latest version from GitHub, or run `python src\segmentation\train_seg.py --model all`. |
 | `No module named 'scipy'` | `pip install scipy` (it normally comes with scikit-learn). |
-| The Segmenter list has no `resnet`, `mobilenet` or `fcdensenet` | Your `src/integration/pipeline.py` is out of date. Pull the latest version. |
-| "Build from Digit Folder" says the folder has no picture for a digit | Add a file that starts with that digit (for example `8.png`) or put pictures in a subfolder named `8`. |
+| The GUI's Segmenter list shows only U-Net | Your `src/integration/pipeline.py` is out of date. Pull the latest version. |
+| Build From Digit Folder says "The folder has no images for the digit(s)" or "No digit images were found" | The folder needs sub-folders named `0` to `9`, each with pictures of that digit. Click **Create sample folder from MNIST**, or choose another folder with **Browse...**. |
+| "Could not create the digit folder" | Creating the sample folder downloads MNIST, so it needs internet once. Check the connection, or choose a folder that already has digits. |
 | A photo gives too many or too few digits | Try the other thresholding method, crop closer to the number, use a darker pen and leave gaps between the digits. |
 | Every digit is right on its own but the number is wrong | The error is usually in segmentation (see Limitations). Use `--save-failures` and look at the boxes. |
 | The GUI does not start and mentions `tkinter` | Install Python from python.org (Tkinter is included on Windows). On Linux: `sudo apt install python3-tk`. |
